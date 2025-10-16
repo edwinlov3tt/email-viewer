@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Email Parse Endpoint</title>
+</head>
+<body>
+    <h2>Test Email Parser</h2>
+    <form id="testForm">
+        <input type="file" id="fileInput" accept=".eml,.msg" required>
+        <button type="submit">Test Upload</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const file = document.getElementById('fileInput').files[0];
+            const formData = new FormData();
+            formData.append('email', file);
+
+            try {
+                const response = await fetch('php/parse-email.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const text = await response.text();
+                console.log('Raw response:', text);
+
+                try {
+                    const json = JSON.parse(text);
+                    document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(json, null, 2) + '</pre>';
+                } catch (e) {
+                    document.getElementById('result').innerHTML = '<pre>Response (not JSON):\n' + text + '</pre>';
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 'Error: ' + error;
+            }
+        });
+    </script>
+</body>
+</html>

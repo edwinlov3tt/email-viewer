@@ -1,0 +1,23 @@
+{
+    "name": "email-viewer/email-parser",
+    "description": "Professional email file viewer for .eml and .msg files",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "zbateson/mail-mime-parser": "^2.4",
+        "hfig/mapi": "^1.0",
+        "ezyang/htmlpurifier": "^4.16"
+    },
+    "autoload": {
+        "psr-4": {
+            "EmailViewer\\": "php/classes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
