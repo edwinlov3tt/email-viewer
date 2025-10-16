@@ -36,7 +36,8 @@ def sanitize_html(html_content):
     if not html_content:
         return ''
 
-    soup = BeautifulSoup(html_content, 'lxml')
+    # Use html.parser instead of lxml (built-in, no dependencies)
+    soup = BeautifulSoup(html_content, 'html.parser')
 
     # Remove script and style tags
     for script in soup(['script', 'style']):
