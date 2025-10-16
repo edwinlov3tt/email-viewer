@@ -897,6 +897,49 @@ class EmailViewer {
             color: #1e293b;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            max-width: 100%;
+        }
+        .email-body-content * {
+            max-width: 100% !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        .email-body-content img {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        .email-list-toggle {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #8b5cf6;
+            font-size: 0.875rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        .email-list-toggle:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+        .email-list-toggle-icon {
+            width: 12px;
+            height: 12px;
+            transition: transform 0.2s ease;
+        }
+        .email-list-toggle.expanded .email-list-toggle-icon {
+            transform: rotate(180deg);
+        }
+        .email-list-items {
+            display: none;
+            margin-top: 8px;
+        }
+        .email-list-items.expanded {
+            display: block;
+        }
+        .email-address-item {
+            display: block;
+            margin-bottom: 4px;
         }
     </style>
 </head>
@@ -945,6 +988,16 @@ class EmailViewer {
                 console.error('Failed to copy:', err);
             });
         }
+
+        function toggleEmailList(id) {
+            const list = document.getElementById(id);
+            const toggle = document.getElementById('toggle_' + id);
+
+            if (list && toggle) {
+                list.classList.toggle('expanded');
+                toggle.classList.toggle('expanded');
+            }
+        }
     </script>
 </body>
 </html>
@@ -963,7 +1016,12 @@ class EmailViewer {
         );
 
         if (popup) {
-            popup.document.write(popupHtml);
+            // Fix onclick handlers to use local functions instead of emailViewer
+            const fixedHtml = popupHtml
+                .replace(/onclick="emailViewer\.toggleEmailList/g, 'onclick="toggleEmailList')
+                .replace(/onclick="emailViewer\.copyEmailAddress/g, 'onclick="copyEmailAddress');
+
+            popup.document.write(fixedHtml);
             popup.document.close();
         } else {
             alert('Please allow popups for this site to use the pop-out feature.');
