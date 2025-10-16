@@ -44,3 +44,11 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# PHP (not used - migrated to Python/Flask)
+php/
+vendor/
+composer.json
+composer.lock
+*.php
+.htaccess
