@@ -3,7 +3,7 @@ Email Viewer Flask Application
 Handles parsing of .eml and .msg files with full support for attachments
 """
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import extract_msg
 import email
@@ -15,7 +15,8 @@ import uuid
 from pathlib import Path
 from datetime import datetime
 
-app = Flask(__name__)
+# Configure Flask to serve static files from current directory
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
 # Configuration
@@ -383,6 +384,18 @@ def parse_nested_email():
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'service': 'email-viewer'})
+
+
+@app.route('/')
+def index():
+    """Serve the main index.html file"""
+    return send_from_directory('.', 'index.html')
+
+
+@app.route('/js/<path:filename>')
+def serve_js(filename):
+    """Serve JavaScript files"""
+    return send_from_directory('js', filename)
 
 
 if __name__ == '__main__':
