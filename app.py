@@ -14,6 +14,8 @@ import tempfile
 import uuid
 from pathlib import Path
 from datetime import datetime
+import base64
+import re
 
 # Configure Flask to serve static files from current directory
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -94,33 +96,48 @@ def parse_eml_file(file_path):
         elif content_type == 'text/html':
             body_html = msg.get_content()
 
-    # Sanitize HTML
-    if body_html:
-        body_html = sanitize_html(body_html)
-    else:
-        # Convert plain text to HTML
-        body_html = f'<pre>{body_text}</pre>' if body_text else ''
-
-    # Extract attachments
+    # Extract attachments first (needed for CID resolution)
     attachments = []
     if msg.is_multipart():
         for part in msg.walk():
-            if part.get_content_disposition() == 'attachment':
+            content_disposition = part.get_content_disposition()
+
+            # Check for both attachments and inline content (like embedded images)
+            if content_disposition in ('attachment', 'inline'):
                 filename = part.get_filename() or 'attachment'
                 attachment_id = str(uuid.uuid4())
                 attachment_path = os.path.join(UPLOAD_FOLDER, f"{attachment_id}_{filename}")
 
+                # Get attachment data
+                attachment_data = part.get_payload(decode=True)
+
                 # Save attachment
                 with open(attachment_path, 'wb') as f:
-                    f.write(part.get_payload(decode=True))
+                    f.write(attachment_data)
+
+                # Extract Content-ID for inline images
+                content_id = part.get('Content-ID', '')
+                if content_id:
+                    # Remove < > brackets if present
+                    content_id = content_id.strip('<>')
 
                 attachments.append({
                     'id': attachment_id,
                     'filename': filename,
                     'size': os.path.getsize(attachment_path),
                     'content_type': part.get_content_type(),
-                    'path': attachment_path
+                    'path': attachment_path,
+                    'content_id': content_id,
+                    'data': attachment_data  # Store for inline image conversion
                 })
+
+    # Sanitize HTML and resolve CID images
+    if body_html:
+        body_html = sanitize_html(body_html)
+        body_html = resolve_cid_images(body_html, attachments)
+    else:
+        # Convert plain text to HTML
+        body_html = f'<pre>{body_text}</pre>' if body_text else ''
 
     return {
         'headers': headers,
@@ -141,7 +158,6 @@ def sanitize_filename(filename):
     filename = filename.replace('\x00', '')
 
     # Remove or replace other problematic characters
-    import re
     filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
 
     # Ensure filename is not empty after sanitization
@@ -149,6 +165,38 @@ def sanitize_filename(filename):
         return 'attachment'
 
     return filename.strip()
+
+
+def resolve_cid_images(html_content, attachments):
+    """Replace cid: image references with base64 data URLs"""
+    if not html_content or not attachments:
+        return html_content
+
+    # Create a mapping of Content-ID to attachment data
+    cid_map = {}
+    for attachment in attachments:
+        content_id = attachment.get('content_id', '')
+        if content_id and attachment.get('data'):
+            cid_map[content_id] = {
+                'data': attachment['data'],
+                'content_type': attachment['content_type']
+            }
+
+    # Replace cid: references in the HTML
+    def replace_cid(match):
+        cid = match.group(1)
+        if cid in cid_map:
+            # Convert to base64 data URL
+            attachment_info = cid_map[cid]
+            base64_data = base64.b64encode(attachment_info['data']).decode('utf-8')
+            data_url = f"data:{attachment_info['content_type']};base64,{base64_data}"
+            return f'src="{data_url}"'
+        return match.group(0)  # Return original if CID not found
+
+    # Find and replace all cid: references
+    html_content = re.sub(r'src=["\']cid:([^"\']+)["\']', replace_cid, html_content, flags=re.IGNORECASE)
+
+    return html_content
 
 
 def parse_msg_file(file_path):
@@ -171,14 +219,7 @@ def parse_msg_file(file_path):
     body_text = getattr(msg, 'body', '') or ''
     body_html = getattr(msg, 'htmlBody', '') or ''
 
-    # Sanitize HTML
-    if body_html:
-        body_html = sanitize_html(body_html)
-    else:
-        # Convert plain text to HTML
-        body_html = f'<pre>{body_text}</pre>' if body_text else ''
-
-    # Extract attachments
+    # Extract attachments first (needed for CID resolution)
     attachments = []
     try:
         for attachment in msg.attachments:
@@ -200,12 +241,20 @@ def parse_msg_file(file_path):
                     with open(attachment_path, 'wb') as f:
                         f.write(attachment_data)
 
+                    # Try to get Content-ID for inline images
+                    content_id = getattr(attachment, 'cid', '') or getattr(attachment, 'contentId', '') or ''
+                    if content_id:
+                        # Remove < > brackets if present
+                        content_id = content_id.strip('<>')
+
                     attachments.append({
                         'id': attachment_id,
                         'filename': filename,  # Use original (but sanitized) filename for display
                         'size': len(attachment_data),
                         'content_type': getattr(attachment, 'mimetype', 'application/octet-stream') or 'application/octet-stream',
-                        'path': attachment_path
+                        'path': attachment_path,
+                        'content_id': content_id,
+                        'data': attachment_data  # Store for inline image conversion
                     })
             except Exception as e:
                 # Skip this attachment if there's an error
@@ -215,6 +264,14 @@ def parse_msg_file(file_path):
         print(f"Error processing attachments: {e}")
 
     msg.close()
+
+    # Sanitize HTML and resolve CID images
+    if body_html:
+        body_html = sanitize_html(body_html)
+        body_html = resolve_cid_images(body_html, attachments)
+    else:
+        # Convert plain text to HTML
+        body_html = f'<pre>{body_text}</pre>' if body_text else ''
 
     return {
         'headers': headers,
