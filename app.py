@@ -139,6 +139,10 @@ def parse_eml_file(file_path):
         # Convert plain text to HTML
         body_html = f'<pre>{body_text}</pre>' if body_text else ''
 
+    # Remove binary data from attachments before returning (not JSON serializable)
+    for attachment in attachments:
+        attachment.pop('data', None)
+
     return {
         'headers': headers,
         'body': {
@@ -272,6 +276,10 @@ def parse_msg_file(file_path):
     else:
         # Convert plain text to HTML
         body_html = f'<pre>{body_text}</pre>' if body_text else ''
+
+    # Remove binary data from attachments before returning (not JSON serializable)
+    for attachment in attachments:
+        attachment.pop('data', None)
 
     return {
         'headers': headers,
