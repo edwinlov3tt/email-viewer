@@ -4,95 +4,138 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Email Viewer web application - a client-side email file parser that allows users to view .eml and .msg files directly in their browser. The application features a premium glassmorphic UI design with full attachment handling capabilities, including nested email preview support.
+Email Viewer Pro is a web-based email parser that allows users to view .eml and .msg files directly in their browser. Features a premium glassmorphic UI design with full attachment handling, nested email support, and embedded image rendering.
+
+**Repository**: https://github.com/edwinlov3tt/email-viewer
+**Production URL**: https://email-viewer.up.railway.app/
+**Railway Project**: `devoted-nature`
 
 ## Tech Stack
 
-- **Frontend Only**: Pure HTML5, CSS3, and vanilla JavaScript (ES6+)
-- **No Framework Dependencies**: All functionality is self-contained
-- **No Build Process**: The application runs directly from static files
-- **CSS Design System**: Custom glassmorphic design with animated backgrounds
+- **Backend**: Python 3.13, Flask 3.0, Gunicorn
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6+)
+- **Email Parsing**: extract-msg (MSG), email stdlib (EML)
+- **HTML Sanitization**: BeautifulSoup4
+- **Hosting**: Railway (project: devoted-nature)
 
 ## Development Commands
 
-Since this is a static frontend application, there are no build or test commands. To run the application:
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-1. Open `index.html` directly in a web browser, or
-2. Use any static file server (e.g., `python -m http.server` or Live Server VS Code extension)
+# Run locally (development)
+python app.py
+
+# Run with Gunicorn (production-like)
+gunicorn app:app --bind 0.0.0.0:5000
+
+# Deploy to Railway
+railway up
+```
 
 ## Architecture & Structure
 
+```
+email-viewer/
+├── app.py              # Flask backend - email parsing API
+├── index.html          # Frontend UI (glassmorphic design)
+├── js/app.js           # EmailViewer class - frontend logic
+├── uploads/            # Temporary file storage
+├── requirements.txt    # Python dependencies
+├── Procfile            # Railway process definition
+├── runtime.txt         # Python version (3.13.7)
+├── nixpacks.toml       # Railway build configuration
+└── .claude/docs/       # Architecture documentation
+```
+
 ### Core Components
 
-1. **index.html**: Main application file containing the complete UI structure
-   - Self-contained with inline CSS and JavaScript
-   - Features drag-and-drop upload area
-   - Modal system for nested email viewing
-   - Glassmorphic card-based layout
+1. **app.py** (Flask Backend):
+   - `parse_eml_file()` - Parse .eml files using Python email library
+   - `parse_msg_file()` - Parse .msg files using extract-msg
+   - `sanitize_html()` - Remove scripts/styles, secure links
+   - `resolve_cid_images()` - Convert embedded images to base64 data URLs
 
-2. **EmailViewer Class** (JavaScript):
-   - Handles file upload and validation
-   - Simulates email parsing (demonstration mode)
-   - Manages attachment display and download
-   - Provides nested email modal functionality
+2. **js/app.js** (Frontend):
+   - `EmailViewer` class handles all UI interactions
+   - File upload with drag-and-drop
+   - Bulk upload queue system
+   - Fullscreen viewer with zoom (50-200%)
+   - Pop-out windows for multitasking
+   - Click-to-copy email addresses
 
-3. **CSS Design System**:
-   - Custom properties (CSS variables) for theming
-   - Glassmorphic effects with backdrop filters
-   - Animated gradient background orbs
-   - Custom styled scrollbars
-   - Responsive grid layouts
+3. **index.html** (UI):
+   - Glassmorphic design with animated gradients
+   - Collapsible recipient lists (3+ addresses)
+   - Attachment grid with file icons
+   - Nested email modal viewer
 
-### Key UI Elements
+## API Endpoints
 
-- **Upload Area**: Drag-and-drop zone with hover effects
-- **Email Display**: Header fields, body content, and attachment grid
-- **Modal System**: For viewing nested email attachments
-- **Loading States**: Spinner animations during processing
-- **Error Handling**: User-friendly error messages
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/parse-email` | Upload and parse .eml/.msg file |
+| GET | `/api/download-attachment` | Download attachment by ID |
+| POST | `/api/parse-nested-email` | Parse nested email attachment |
+| GET | `/health` | Health check endpoint |
 
-## Important Implementation Notes
+## Key Implementation Notes
 
-### Current State
-The application is currently in **demonstration mode** - it simulates email parsing with sample data rather than actually parsing uploaded files. The `parseEmailFile()` method generates mock email data for UI demonstration purposes.
+### Email Parsing
+- EML files: Python's built-in `email` library with `policy.default`
+- MSG files: `extract-msg` library for Outlook format
+- Embedded images: CID references converted to base64 data URLs
+- HTML sanitization: BeautifulSoup removes `<script>` and `<style>` tags
 
-### To Convert to Production
-To make this application functional, you would need to:
-1. Implement actual .eml and .msg file parsing (using libraries like EmailJS or server-side processing)
-2. Add real attachment extraction and handling
-3. Implement actual file download functionality for attachments
-4. Add proper security measures (content sanitization, file validation)
+### Storage
+- **In-Memory**: Parsed emails stored in `email_storage` dict (lost on restart)
+- **File System**: Uploads saved to `uploads/` directory
+- **No Database**: Schema provided in `.env.example` for future migration
 
-### File Handling Limitations
-- Browser JavaScript cannot directly parse .eml/.msg files without appropriate libraries
-- Attachment downloads in demo mode show alerts instead of actual downloads
-- Nested email viewing uses simulated content
+### Security
+- HTML content sanitized with BeautifulSoup
+- XSS prevention via `escapeHtml()` function
+- External links get `target="_blank" rel="noopener noreferrer"`
+- File validation: extension (.eml, .msg) and size (10MB max)
+- Filename sanitization removes null bytes and special characters
 
-## Design Patterns
+## Railway Deployment
 
-### Glassmorphic UI
-- Semi-transparent backgrounds with blur effects
-- Layered glass cards with subtle borders
-- Animated gradient orbs in the background
-- Consistent use of rgba colors for transparency
+**Project Name**: devoted-nature
+**Service Name**: email-viewer
+**Domain**: email-viewer.up.railway.app
 
-### Event Handling
-- Class-based architecture with centralized event management
-- Drag-and-drop API integration
-- Modal management through class methods
-- Proper event delegation for dynamic content
+```bash
+# Link to project
+railway link -p devoted-nature -s email-viewer
 
-### Responsive Design
-- CSS Grid for attachment layouts
-- Flexible card components
-- Mobile-friendly viewport settings
-- Overflow handling with custom scrollbars
+# Deploy
+railway up
 
-## Security Considerations
+# Check logs
+railway logs --lines 50
 
-When converting to production:
-- Implement proper HTML sanitization for email content
-- Validate file types and sizes on both client and server
-- Use Content Security Policy headers
-- Sanitize filenames before display
-- Implement session-based access control for attachments
+# Check status
+railway status
+```
+
+The `nixpacks.toml` forces Python detection (overrides PHP detection from legacy `vendor/` directory).
+
+## Known Limitations
+
+1. In-memory storage - data lost on server restart
+2. No rate limiting implemented
+3. No file cleanup mechanism for uploads/
+4. Bulk upload is sequential, not parallel
+5. Large embedded images increase JSON response size
+
+## Documentation
+
+Detailed documentation in `.claude/docs/`:
+- `ARCHITECTURE.md` - System design and data flow
+- `CHANGELOG.md` - Version history
+- `KNOWN_ISSUES.md` - Bugs and technical debt
+- `DECISIONS.md` - Architectural decisions
+- `components/api-routes.md` - API documentation
+- `services/railway.md` - Deployment guide
