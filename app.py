@@ -23,7 +23,7 @@ CORS(app)
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTENSIONS = {'.eml', '.msg'}
 
 # Create uploads directory
@@ -317,7 +317,7 @@ def parse_email():
         # Check file size
         if os.path.getsize(temp_path) > MAX_FILE_SIZE:
             os.remove(temp_path)
-            return jsonify({'success': False, 'error': 'File size exceeds 10MB limit'}), 400
+            return jsonify({'success': False, 'error': 'File size exceeds 50MB limit'}), 400
 
         # Parse email based on file type
         try:

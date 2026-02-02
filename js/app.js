@@ -156,8 +156,8 @@ class EmailViewer {
             return false;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            this.showError(`File ${file.name} exceeds 10MB limit.`);
+        if (file.size > 50 * 1024 * 1024) {
+            this.showError(`File ${file.name} exceeds 50MB limit.`);
             return false;
         }
 
