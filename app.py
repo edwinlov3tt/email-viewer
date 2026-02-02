@@ -16,6 +16,8 @@ from pathlib import Path
 from datetime import datetime
 import base64
 import re
+import zipfile
+import io
 
 # Configure Flask to serve static files from current directory
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -387,6 +389,56 @@ def download_attachment():
         return jsonify({
             'success': False,
             'error': f'Failed to download attachment: {str(e)}'
+        }), 500
+
+
+@app.route('/api/download-images-zip', methods=['GET'])
+def download_images_zip():
+    """Download all images from an email as a ZIP file"""
+    try:
+        email_id = request.args.get('email_id')
+
+        if not email_id:
+            return jsonify({'success': False, 'error': 'Missing email_id parameter'}), 400
+
+        email_data = email_storage.get(email_id)
+        if not email_data:
+            return jsonify({'success': False, 'error': 'Email not found'}), 404
+
+        # Filter image attachments
+        images = [
+            att for att in email_data['attachments']
+            if att.get('content_type', '').startswith('image/')
+        ]
+
+        if not images:
+            return jsonify({'success': False, 'error': 'No images found in email'}), 404
+
+        # Create ZIP file in memory
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for img in images:
+                if os.path.exists(img['path']):
+                    zf.write(img['path'], img['filename'])
+
+        zip_buffer.seek(0)
+
+        # Generate filename from email subject or use default
+        subject = email_data.get('headers', {}).get('subject', 'email')
+        safe_subject = re.sub(r'[^\w\s-]', '', subject)[:30].strip() or 'email'
+        zip_filename = f"{safe_subject}_images.zip"
+
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=zip_filename
+        )
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to create images ZIP: {str(e)}'
         }), 500
 
 

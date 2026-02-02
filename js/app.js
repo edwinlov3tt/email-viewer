@@ -515,6 +515,11 @@ class EmailViewer {
         `;
 
         if (emailData.attachments && emailData.attachments.length > 0) {
+            // Count image attachments
+            const imageCount = emailData.attachments.filter(att =>
+                att.content_type && att.content_type.startsWith('image/')
+            ).length;
+
             html += `
                 <div class="attachments-section">
                     <div class="attachments-title">
@@ -522,6 +527,14 @@ class EmailViewer {
                             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                         </svg>
                         Attachments (${emailData.attachments.length})
+                        ${imageCount > 0 ? `
+                            <button class="btn btn-primary" style="margin-left: auto; font-size: 0.8rem; padding: 6px 12px;" onclick="emailViewer.downloadImagesZip('${emailData.id}')">
+                                <svg class="icon icon-sm" style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                                Download All Images (${imageCount})
+                            </button>
+                        ` : ''}
                     </div>
                     <div class="attachment-list">
             `;
@@ -686,6 +699,10 @@ class EmailViewer {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    downloadImagesZip(emailId) {
+        window.location.href = `${this.apiBase}/download-images-zip?email_id=${emailId}`;
     }
 
     getFileIcon(filename) {
